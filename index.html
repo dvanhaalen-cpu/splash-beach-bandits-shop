@@ -1,3 +1,114 @@
+
+Oudere berichten worden geladen…
+ja graag
+
+Ja. De volledige versie is inmiddels bijna 5.000 regels, waardoor één enorm codeblok hier juist onhandig wordt om foutloos te kopiëren. Je kunt wél exact dezelfde code openen en volledig kopiëren uit dit HTML-bestand:
+Open/download de volledige nieuwe index.html
+
+Als je hem opent in een teksteditor: Ctrl+A → Ctrl+C en plak hem in GitHub bij je bestaande index.html.
+
+Je moet daarnaast deze twee afbeeldingsbestanden één keer uploaden naar dezelfde map als index.html:
+
+Logo beachkids-bonaire-logo.png
+
+Favicon favicon.png
+
+Belangrijk: de code zelf bevat het logo dus niet als 75.000 tekens aan afbeeldingsdata. Daarom moeten die PNG-bestanden ook in GitHub staan. Daarna verschijnt het logo linksboven én het kleine logo bij het browsertabblad.
+
+Als je wilt dat we het precies zoals eerder doen — GitHub openen → huidige index → Edit → alles vervangen → Commit changes — kan ik je vanaf jouw huidige scherm weer stap voor stap meenemen.
+index.htmlHTML
+beachkids-bonaire-logo.pngAfbeelding
+favicon.pngAfbeelding
+graag
+
+Ja, we doen het gewoon weer stap voor stap in GitHub. Je hoeft dus niet zelf uit te zoeken waar alles moet. 😊
+Stap 1 — open je repository
+
+Ga in GitHub naar:
+
+liseannejonk / splash-beach-bandits-shop
+
+Je komt dan op het tabblad Code waar je bestanden staan, waaronder je huidige:
+
+index.html
+Stap 2 — open index.html
+
+Klik op index.html.
+
+Rechtsboven bij de code zie je een potloodje ✏️ (Edit this file). Klik daarop.
+Stap 3 — vervang de huidige code
+
+Je ziet nu alle code.
+
+Klik ergens in de code en doe:
+
+Ctrl + A → alles selecteren
+Backspace/Delete → oude code verwijderen
+
+Open daarna mijn nieuwe bestand:
+👉
+Open de nieuwe volledige index.html
+
+Open het bestand en doe:
+
+Ctrl + A → Ctrl + C
+
+Ga terug naar GitHub en doe:
+
+Ctrl + V
+
+Dan staat de volledige nieuwe code erin.
+
+Nog niet weggaan, maar scroll vervolgens naar beneden en klik op Commit changes… → nogmaals Commit changes.
+
+Daarna moeten we nog 2 bestanden uploaden, anders kan GitHub het nieuwe logo niet laten zien:
+
+⬇️ beachkids-bonaire-logo.png
+
+⬇️ favicon.png
+
+Als je stap 1 t/m 3 hebt gedaan en de nieuwe index.html is gecommit, stuur mij even een screenshot van je GitHub-scherm. Dan vertel ik je vanaf precies dat scherm waar je moet klikken om het logo en favicon goed toe te voegen.
+index.htmlHTML
+beachkids-bonaire-logo.pngAfbeelding
+favicon.pngAfbeelding
+oke maar als ik hem open die index.html zie ik niet een code die ik kan overnemen en plakken
+
+Aah ja, ik zie het probleem. 😄 Als je op mijn index.html-link klikt, probeert je browser hem als website weer te geven in plaats van als platte code. Daardoor kun je niet makkelijk Ctrl+A → Ctrl+C doen.
+
+We doen het anders.
+
+Ik kan de volledige HTML-code als een .txt-bestand maken. Als je dat opent, zie je letterlijk:
+
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+...
+
+Dan kun je simpelweg:
+
+Ctrl+A → Ctrl+C → naar GitHub → Ctrl+V
+
+Ik maak dus exact dezelfde nieuwste websitecode, maar als kopieerbaar tekstbestand.
+jaaa graag
+
+Jaaa, geregeld! 🙌 Ik heb de volledige nieuwste websitecode nu als gewoon tekstbestand gemaakt.
+👉
+Open hier de volledige kopieerbare code
+
+Als je hem opent, zie je daadwerkelijk alle HTML-code.
+
+Daarna:
+
+    Ctrl + A → alles selecteren.
+    Ctrl + C → kopiëren.
+    Ga naar GitHub → open index.html → klik op ✏️ Edit.
+    Ctrl + A → verwijder de oude code.
+    Ctrl + V → plak de nieuwe code.
+    Klik Commit changes.
+
+Daarna doen we nog even de twee logo-bestanden en vervolgens kunnen we beachkidsbonaire.com goed gaan koppelen.
+BeachKids-Bonaire-volledige-code.txtDocument
 <!DOCTYPE html>
 <html lang="nl">
 
@@ -5,7 +116,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Beach & Bandits | Swim Academy Splash Bonaire</title>
+<title>Beach Kids Bonaire | Kids Beachwear</title>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
@@ -1658,7 +1769,7 @@ footer span {
 
 
 /* ===== BEACH KIDS BONAIRE: LOGO, HERO SLIDER & FILTERS ===== */
-.brand-logo { height: 72px; width: auto; object-fit: contain; }
+.brand-logo { height: 86px; width: auto; max-width: 310px; object-fit: contain; }
 .hero { background:#dceff2; }
 .hero::before { display:none; }
 .hero-slide { position:absolute; inset:0; opacity:0; transition:opacity .8s ease; }
@@ -1679,7 +1790,7 @@ footer span {
 .filter-button:hover { border-color:var(--midnight); }
 .filter-button.active { background:var(--midnight); color:white; border-color:var(--midnight); }
 .no-filter-products { grid-column:1/-1; padding:40px 20px; text-align:center; color:var(--muted); }
-@media(max-width:600px){ .brand-logo{height:54px;} .hero-arrow{width:36px;height:36px;font-size:20px}.hero-arrow.prev{left:10px}.hero-arrow.next{right:10px}.collection-filters{padding:0 15px;gap:7px}.filter-button{min-width:0;flex:1;padding:10px 8px;font-size:10px} }
+@media(max-width:600px){ .brand-logo{height:62px;max-width:220px;} .hero-arrow{width:36px;height:36px;font-size:20px}.hero-arrow.prev{left:10px}.hero-arrow.next{right:10px}.collection-filters{padding:0 15px;gap:7px}.filter-button{min-width:0;flex:1;padding:10px 8px;font-size:10px} }
 
 
 /* ===== BEACH KIDS BONAIRE: SPLASH COLOUR REFRESH ===== */
@@ -1727,7 +1838,40 @@ body { background: var(--page-cream); }
   .product-detail-info { padding:20px; }
 }
 
+
+/* ===== BESTELWORKFLOW & OPHAALMOMENTEN ===== */
+.order-steps { width:min(1120px,100%); margin:24px auto 0; display:flex; align-items:flex-start; justify-content:center; gap:0; text-align:center; }
+.order-step { position:relative; flex:1 1 0; min-width:0; padding:0 14px; background:transparent; }
+.order-step:not(:last-child)::after { content:"→"; position:absolute; top:9px; right:-8px; color:var(--ocean); opacity:.45; font-size:18px; font-weight:700; }
+.order-step span { width:28px; height:28px; display:flex; align-items:center; justify-content:center; margin:0 auto 9px; border-radius:50%; background:var(--orange); color:#fff; font-size:12px; font-weight:800; }
+.order-step strong { display:block; color:var(--midnight); font-size:13px; line-height:1.3; }
+.order-step p { margin:5px auto 0; max-width:175px; color:var(--muted); font:11px/1.4 Arial,sans-serif; }
+.intro { max-width:none; }
+.intro > * { max-width:1180px; }
+.pickup-group { padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--soft-blue); }
+.form-group select { width:100%; padding:12px 13px; border:1px solid var(--border); border-radius:9px; outline:none; background:#fff; color:var(--text); font-family:inherit; }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color:var(--ocean); box-shadow:0 0 0 3px rgba(23,117,155,.10); }
+.pickup-help { margin-top:7px; color:var(--muted); font:11px/1.45 Arial,sans-serif; }
+@media(max-width:900px){
+  .order-steps { display:grid; grid-template-columns:repeat(3,1fr); row-gap:22px; }
+  .order-step:not(:last-child)::after { display:none; }
+}
+@media(max-width:600px){
+  .order-steps { grid-template-columns:repeat(2,1fr); gap:20px 8px; margin-top:20px; }
+  .order-step { padding:0 6px; }
+  .order-step:last-child { grid-column:1 / -1; max-width:220px; width:100%; justify-self:center; }
+  .order-step p { font-size:10.5px; }
+}
+
 </style>
+
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="shortcut icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="favicon.png">
+<link rel="canonical" href="https://www.beachkidsbonaire.com/">
+<meta property="og:url" content="https://www.beachkidsbonaire.com/">
+<meta property="og:title" content="Beach Kids Bonaire | Kids Beachwear">
+
 </head>
 
 
@@ -1742,7 +1886,7 @@ body { background: var(--page-cream); }
 <nav class="navbar">
 
   <div class="brand">
-    <img class="brand-logo" src="Beach_Kids_Bonaire_Logo.png" alt="Beach Kids Bonaire - Powered by Splash">
+    <img class="brand-logo" src="beachkids-bonaire-logo.png" alt="Beach Kids Bonaire - Powered by Splash">
   </div>
 
   <button
@@ -1793,14 +1937,16 @@ body { background: var(--page-cream); }
   </div>
 
   <h2>
-    Made for little water lovers
+    Bestellen in 5 eenvoudige stappen
   </h2>
 
-  <p>
-    Ontdek de Beach & Bandits collectie bij Swim Academy Splash.
-    Kies je favoriete model, selecteer de juiste maat
-    en bestel eenvoudig via WhatsApp.
-  </p>
+  <div class="order-steps">
+    <div class="order-step"><span>1</span><strong>Kies je favoriet</strong><p>Kies je favoriete model en selecteer de juiste maat.</p></div>
+    <div class="order-step"><span>2</span><strong>Kies je ophaalmoment</strong><p>Selecteer een beschikbare dag en tijd die jou het beste uitkomt.</p></div>
+    <div class="order-step"><span>3</span><strong>Bestel via WhatsApp</strong><p>Controleer je bestelling en verstuur deze eenvoudig via WhatsApp.</p></div>
+    <div class="order-step"><span>4</span><strong>Ontvang je bevestiging</strong><p>Je ontvangt via WhatsApp een bevestiging van je bestelling en een betaallink.</p></div>
+    <div class="order-step"><span>5</span><strong>Ophalen bij Hill Side</strong><p>Na bevestiging ligt je bestelling op het afgesproken moment voor je klaar bij Hill Side.</p></div>
+  </div>
 
 </section>
 
@@ -2080,17 +2226,18 @@ body { background: var(--page-cream); }
     </div>
 
 
-    <div class="form-group">
+    <div class="form-group pickup-group">
+      <label for="pickup-date">Kies je ophaaldatum *</label>
+      <input id="pickup-date" type="date" onchange="updatePickupTimes()">
+      <div class="pickup-help">Ophalen is mogelijk op dinsdag, woensdag, donderdag en zaterdag.</div>
+    </div>
 
-      <label>
-        Gewenste ophaaldatum
-      </label>
-
-      <input
-        id="pickup-date"
-        type="date"
-      >
-
+    <div class="form-group pickup-group">
+      <label for="pickup-time">Kies je tijd *</label>
+      <select id="pickup-time" disabled>
+        <option value="">Kies eerst een datum</option>
+      </select>
+      <div class="pickup-help">Alleen beschikbare tijdsloten worden getoond.</div>
     </div>
 
 
@@ -4409,6 +4556,60 @@ function toggleAccordion(id) {
 
 
 /* =====================================================
+   OPHAALMOMENTEN
+   ===================================================== */
+
+const PICKUP_SLOTS = {
+  2: ["13:45", "14:45", "15:45", "16:45"],
+  3: ["13:45", "14:45", "15:45", "16:45"],
+  4: ["13:45", "14:45", "15:45", "16:45"],
+  6: ["08:45", "09:45", "10:45", "11:45", "12:45", "13:45"]
+};
+
+function localISODate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function initialisePickupDate() {
+  const input = document.getElementById("pickup-date");
+  if (!input) return;
+  input.min = localISODate(new Date());
+}
+
+function updatePickupTimes() {
+  const dateInput = document.getElementById("pickup-date");
+  const timeSelect = document.getElementById("pickup-time");
+  if (!dateInput || !timeSelect) return;
+
+  timeSelect.innerHTML = '<option value="">Kies een tijd</option>';
+  timeSelect.disabled = true;
+  if (!dateInput.value) return;
+
+  const chosenDate = new Date(dateInput.value + "T12:00:00");
+  const slots = PICKUP_SLOTS[chosenDate.getDay()];
+
+  if (!slots) {
+    alert("Op deze dag is ophalen niet mogelijk. Kies dinsdag, woensdag, donderdag of zaterdag.");
+    dateInput.value = "";
+    timeSelect.innerHTML = '<option value="">Kies eerst een beschikbare datum</option>';
+    return;
+  }
+
+  slots.forEach(time => {
+    const option = document.createElement("option");
+    option.value = time;
+    option.textContent = time;
+    timeSelect.appendChild(option);
+  });
+  timeSelect.disabled = false;
+}
+
+initialisePickupDate();
+
+/* =====================================================
    WHATSAPP
    ===================================================== */
 
@@ -4492,6 +4693,13 @@ function orderViaWhatsApp() {
       )
       .value;
 
+  const pickupTime =
+    document
+      .getElementById(
+        "pickup-time"
+      )
+      .value;
+
 
   const remark =
     document
@@ -4525,6 +4733,11 @@ function orderViaWhatsApp() {
 
     return;
 
+  }
+
+  if (!pickupDate || !pickupTime) {
+    alert("Kies eerst een beschikbare ophaaldatum en tijd.");
+    return;
   }
 
 
@@ -4593,7 +4806,8 @@ Subtotaal: $${subtotal.toFixed(2)}
 
 Naam: ${customerName}
 Telefoonnummer: ${phone}
-Gewenste ophaaldatum: ${pickupDate || "Niet ingevuld"}
+Ophaalmoment: ${pickupDate} om ${pickupTime}
+Ophaallocatie: Hill Side
 Opmerking: ${remark || "Geen"}`;
 
 
@@ -4607,6 +4821,12 @@ Opmerking: ${remark || "Geen"}`;
 
     pickupDate:
       pickupDate,
+
+    pickupTime:
+      pickupTime,
+
+    pickupLocation:
+      "Hill Side",
 
     remark:
       remark,
@@ -4805,3 +5025,5 @@ updateCart();
 
 </body>
 </html>
+
+
