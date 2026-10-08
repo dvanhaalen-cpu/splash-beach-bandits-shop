@@ -1777,6 +1777,16 @@ body { background: var(--page-cream); }
   color:#fff !important;
 }
 
+
+/* Compacte ophaalkeuze */
+.pickup-wizard { display:flex; flex-direction:column; gap:12px; }
+.pickup-wizard label { font-weight:700; color:#1e556b; margin-top:5px; }
+.pickup-day-buttons,.pickup-time-buttons { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.pickup-day-buttons button,.pickup-time-buttons button { background:#fff; color:#1e556b; border:1px solid #cbdde3; border-radius:11px; padding:12px 5px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+.pickup-day-buttons button.active,.pickup-time-buttons button.active { background:#1e556b; color:white; border-color:#1e556b; }
+.pickup-wizard #pickup-date { width:100%; min-height:47px; border:1px solid #cbdde3; border-radius:11px; background:#fff; padding:10px 12px; color:#1e556b; font:inherit; }
+.pickup-wizard #pickup-date:disabled { opacity:.55; }
+@media(max-width:520px){ .pickup-day-buttons,.pickup-time-buttons {grid-template-columns:repeat(2,minmax(0,1fr));} }
 </style>
 
 <link rel="icon" type="image/png" href="Beach Kids Bonaire-logo.png">
@@ -2141,20 +2151,21 @@ body { background: var(--page-cream); }
     </div>
 
 
-    <div class="form-group pickup-group">
-      <label for="pickup-date">Kies je ophaaldatum *</label>
-      <input id="pickup-date" type="text" placeholder="Kies een beschikbare datum" readonly>
-      <div class="pickup-help">Ophalen is mogelijk op dinsdag, woensdag, donderdag en zaterdag.</div>
+    <div class="form-group pickup-group pickup-wizard">
+      <label>1. Kies je ophaaldag *</label>
+      <div class="pickup-day-buttons" id="pickup-days">
+        <button type="button" data-day="2">Dinsdag</button>
+        <button type="button" data-day="3">Woensdag</button>
+        <button type="button" data-day="4">Donderdag</button>
+        <button type="button" data-day="6">Zaterdag</button>
+      </div>
+      <label for="pickup-date">2. Kies je datum *</label>
+      <select id="pickup-date" disabled><option value="">Kies eerst een ophaaldag</option></select>
+      <label for="pickup-time">3. Kies je tijdstip *</label>
+      <div id="pickup-time-buttons" class="pickup-time-buttons"></div>
+      <select id="pickup-time" disabled hidden aria-label="Gekozen ophaaltijd"><option value="">Kies eerst een datum</option></select>
+      <div class="pickup-help">Ophalen bij Hill Side · Alleen de beschikbare dagen en tijden worden getoond.</div>
     </div>
-
-    <div class="form-group pickup-group">
-      <label for="pickup-time">Kies je tijd *</label>
-      <select id="pickup-time" disabled>
-        <option value="">Kies eerst een datum</option>
-      </select>
-      <div class="pickup-help">Alleen beschikbare tijdsloten worden getoond.</div>
-    </div>
-
 
     <div class="form-group">
 
@@ -2466,6 +2477,10 @@ function price(product) {
 
 
 function productImages(product) {
+  const id = String(productId(product) || '').trim().toUpperCase();
+  const photoSlug = ({ BB001:'seagraffe', BB015:'stripes-of-love', BB019:'zonnetjes' })[id];
+  if (photoSlug) return [1,2,3,4].map(i => `images/${photoSlug}-${i}.jpg`);
+
 
   const urls = [];
 
@@ -4489,68 +4504,67 @@ function localISODate(date) {
 }
 
 function initialisePickupDate() {
-  const input = document.getElementById("pickup-date");
-  if (!input || typeof flatpickr === "undefined") return;
+  const days = document.getElementById('pickup-days');
+  const dateSelect = document.getElementById('pickup-date');
+  const timeSelect = document.getElementById('pickup-time');
+  const timeButtons = document.getElementById('pickup-time-buttons');
+  if (!days || !dateSelect || !timeSelect || !timeButtons) return;
 
-  flatpickr(input, {
-    locale: {
-      firstDayOfWeek: 1,
-      weekdays: {
-        shorthand: ["zo","ma","di","wo","do","vr","za"],
-        longhand: ["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"]
-      },
-      months: {
-        shorthand: ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
-        longhand: ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"]
-      }
-    },
-    dateFormat: "Y-m-d",
-    altInput: true,
-    altFormat: "l j F Y",
-    minDate: "today",
-    disableMobile: true,
-
-    // Alleen di (2), wo (3), do (4) en za (6) zijn aanklikbaar.
-    // Ma, vr en zo worden zichtbaar geblokkeerd in de kalender.
-    enable: [
-      function(date) {
-        return [2, 3, 4, 6].includes(date.getDay());
-      }
-    ],
-
-    onChange: function(selectedDates, dateStr) {
-      input.value = dateStr;
-      updatePickupTimes();
-    }
-  });
-}
-
-function updatePickupTimes() {
-  const dateInput = document.getElementById("pickup-date");
-  const timeSelect = document.getElementById("pickup-time");
-  if (!dateInput || !timeSelect) return;
-
-  timeSelect.innerHTML = '<option value="">Kies een tijd</option>';
-  timeSelect.disabled = true;
-  if (!dateInput.value) return;
-
-  const chosenDate = new Date(dateInput.value + "T12:00:00");
-  const slots = PICKUP_SLOTS[chosenDate.getDay()];
-
-  if (!slots) {
-    alert("Op deze dag is ophalen niet mogelijk. Kies dinsdag, woensdag, donderdag of zaterdag.");
-    dateInput.value = "";
-    timeSelect.innerHTML = '<option value="">Kies eerst een beschikbare datum</option>';
-    return;
+  function resetTime() {
+    timeSelect.innerHTML = '<option value="">Kies een tijdstip</option>';
+    timeSelect.value = '';
+    timeSelect.disabled = true;
+    timeButtons.innerHTML = '';
   }
 
-  slots.forEach(time => {
-    const option = document.createElement("option");
-    option.value = time;
-    option.textContent = time;
-    timeSelect.appendChild(option);
+  days.querySelectorAll('button[data-day]').forEach(button => {
+    button.addEventListener('click', () => {
+      days.querySelectorAll('button').forEach(b => {
+        b.classList.toggle('active', b === button);
+        b.setAttribute('aria-pressed', String(b === button));
+      });
+      const chosenDay = Number(button.dataset.day);
+      dateSelect.innerHTML = '<option value="">Kies een datum</option>';
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      for (let offset = 0; offset <= 90; offset++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + offset);
+        if (date.getDay() !== chosenDay) continue;
+        const option = document.createElement('option');
+        option.value = localISODate(date);
+        option.textContent = new Intl.DateTimeFormat('nl-NL', {
+          weekday:'long', day:'numeric', month:'long', year:'numeric'
+        }).format(date);
+        dateSelect.appendChild(option);
+      }
+      dateSelect.disabled = false;
+      dateSelect.value = '';
+      resetTime();
+    });
   });
-  timeSelect.disabled = false;
+
+  dateSelect.addEventListener('change', () => {
+    resetTime();
+    if (!dateSelect.value) return;
+    const day = new Date(dateSelect.value + 'T12:00:00').getDay();
+    const slots = PICKUP_SLOTS[day] || [];
+    slots.forEach(time => {
+      const option = document.createElement('option');
+      option.value = time;
+      option.textContent = time;
+      timeSelect.appendChild(option);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = time;
+      button.addEventListener('click', () => {
+        timeSelect.disabled = false;
+        timeSelect.value = time;
+        timeButtons.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === button));
+      });
+      timeButtons.appendChild(button);
+    });
+  });
 }
 
 initialisePickupDate();
