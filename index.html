@@ -2239,7 +2239,7 @@ let activeCollectionFilter = "meiden";
 let heroIndex = 0;
 let heroTimer = null;
 
-// Bewaar een onzekere bestelling, zodat opnieuw klikken geen tweede reservering maakt.
+// Bewaar een onzekere bestelling, zodat opnieuw klikken geen tweede bestelling maakt.
 const PENDING_ORDER_KEY = "beachkids_pending_order_v1";
 let orderSubmitting = false;
 
@@ -4627,7 +4627,7 @@ function getGreeting() {
 }
 
 
-// Statuscontrole via JSONP: de browser kan een no-cors POST niet uitlezen.
+// Bestelstatus via JSONP: de browser kan een no-cors POST niet uitlezen.
 // Het unieke requestId maakt herhaald verzenden idempotent aan de serverkant.
 function readPendingOrder() {
   try { return JSON.parse(localStorage.getItem(PENDING_ORDER_KEY) || "null"); }
@@ -4675,10 +4675,10 @@ async function waitForReservation(requestId) {
 async function orderViaWhatsApp() {
   if (orderSubmitting || !cart.length) return;
 
-  // Onzekere eerdere reservering eerst afhandelen: nooit een nieuw ID maken.
+  // Onzekere eerdere bestelling eerst afhandelen: nooit een nieuw ID maken.
   const pending = readPendingOrder();
   if (pending) {
-    alert("Er staat nog een bestelling klaar waarvan de status onbekend is. Controleer eerst de bestelling in Google Sheets (tabblad RESERVERINGEN). Plaats nog geen nieuwe bestelling; zo voorkomen we dubbele voorraadreservering.");
+    alert("Er staat nog een bestelling klaar waarvan de status onbekend is. Controleer eerst de bestelling in Google Sheets (tabblad RESERVERINGEN). Plaats nog geen nieuwe bestelling; zo voorkomen we dubbele bestellingen.");
     return;
   }
 
@@ -4716,7 +4716,7 @@ async function orderViaWhatsApp() {
   const button = document.getElementById("whatsapp-button");
   orderSubmitting = true;
   button.disabled = true;
-  button.textContent = "Voorraad reserveren...";
+  button.textContent = "Bestelling verwerken...";
   localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({ requestId, createdAt: Date.now() }));
 
   try {
@@ -4735,14 +4735,14 @@ async function orderViaWhatsApp() {
       // De gepubliceerde CSV kan even achterlopen: voorraad niet direct lokaal hergebruiken.
       cart = [];
       updateCart();
-      alert("Voorraad gereserveerd! Rond je bestelling nu af in WhatsApp.");
+      alert("Je bestelling is geplaatst en de voorraad is bijgewerkt! Je kunt het bestelbericht nu via WhatsApp versturen.");
     } else if (result.status === "FAILED") {
       localStorage.removeItem(PENDING_ORDER_KEY);
       if (whatsappTab) whatsappTab.close();
-      alert("Reservering niet gelukt: " + (result.error || "Controleer de voorraad en probeer opnieuw."));
+      alert("Bestelling niet gelukt: " + (result.error || "Controleer de voorraad en probeer opnieuw."));
     } else {
       if (whatsappTab) whatsappTab.close();
-      alert("We kunnen nog niet bevestigen of je voorraad is gereserveerd. Plaats GEEN tweede bestelling. Vraag de winkel om het tabblad RESERVERINGEN te controleren met ID: " + requestId);
+      alert("We kunnen nog niet bevestigen of je bestelling is verwerkt. Plaats GEEN tweede bestelling. Vraag de winkel om het tabblad RESERVERINGEN te controleren met ID: " + requestId);
     }
   } catch (error) {
     if (whatsappTab) whatsappTab.close();
