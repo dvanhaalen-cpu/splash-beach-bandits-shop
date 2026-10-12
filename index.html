@@ -4661,10 +4661,15 @@ function sendOrderToSheet_(orderData) {
       if (error) reject(error); else resolve(value);
     }
     function onMessage(event) {
-      const host = (() => { try { return new URL(event.origin).hostname; } catch (_) { return ''; } })();
-      if (host !== 'script.google.com' && host !== 'script.googleusercontent.com' && !host.endsWith('.googleusercontent.com')) return;
-      const data = event.data;
+      // Apps Script HTMLService draait in een Google-sandbox. Die kan berichten
+      // versturen met een andere origin (soms "null"). Controleer daarom het
+      // unieke, cryptografisch gegenereerde aanvraagnummer in plaats van de origin.
+      let data = event.data;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (_) { return; }
+      }
       if (!data || data.source !== 'BKB_ORDER_ACK_V2' || data.requestId !== orderData.requestId) return;
+      if (!['SUCCESS','FAILED','REVIEW','PENDING'].includes(data.status)) return;
       finish(data,null);
     }
     window.addEventListener('message',onMessage);
