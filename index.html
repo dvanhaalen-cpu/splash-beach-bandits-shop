@@ -2223,7 +2223,7 @@ const WHATSAPP_NUMBER =
 
 
 const ORDER_WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbx6nME_ZzNj5R2MVgxc8yloTlnNfQd3OjGpBsXwA77Gvyi25WFPjqZ815dS9qIXFpJmEQ/exec";
+  "https://script.google.com/macros/s/AKfycbzAY1zMe_oXPF2NKrjO3qSlpnBE80b8icEmvFdB5kMD9-uMIPUDaZ-IOBNjn8flySnYew/exec";
 
 
 let products = [];
@@ -4627,27 +4627,32 @@ function getGreeting() {
 }
 
 
-// Deze website hoort bij het oorspronkelijke Apps Script met RESERVERINGEN.
-// JSON POST wordt door doPost verwerkt; doGet levert de status via JSONP.
+// Bestelstatus via JSONP: de browser kan een no-cors POST niet uitlezen.
+// Het unieke requestId maakt herhaald verzenden idempotent aan de serverkant.
+function readPendingOrder() {
+  try { return JSON.parse(localStorage.getItem(PENDING_ORDER_KEY) || "null"); }
+  catch (_) { return null; }
+}
+
 function checkReservation(requestId) {
   return new Promise((resolve, reject) => {
-    const callback = 'bkbStatus_' + Math.random().toString(36).slice(2);
-    const script = document.createElement('script');
-    let finished = false;
-    const timeout = setTimeout(() => finish(null, new Error('Statuscontrole timeout')), 10000);
-    function finish(value, error) {
-      if (finished) return;
-      finished = true;
-      clearTimeout(timeout);
+    const callback = "beachKidsStatus_" + Math.random().toString(36).slice(2);
+    const script = document.createElement("script");
+    let done = false;
+    const timer = setTimeout(() => finish(new Error("Statuscontrole duurde te lang")), 12000);
+    function finish(result) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
       delete window[callback];
       script.remove();
-      error ? reject(error) : resolve(value);
+      result instanceof Error ? reject(result) : resolve(result);
     }
-    window[callback] = value => finish(value, null);
-    script.onerror = () => finish(null, new Error('Google Apps Script status niet bereikbaar'));
-    script.src = ORDER_WEB_APP_URL + '?action=status&requestId=' +
-      encodeURIComponent(requestId) + '&callback=' + encodeURIComponent(callback) +
-      '&_=' + Date.now();
+    window[callback] = finish;
+    script.onerror = () => finish(new Error("Statuscontrole niet bereikbaar"));
+    script.src = ORDER_WEB_APP_URL + "?action=status&requestId=" +
+      encodeURIComponent(requestId) + "&callback=" + encodeURIComponent(callback) +
+      "&_=" + Date.now();
     document.head.appendChild(script);
   });
 }
@@ -4656,108 +4661,97 @@ async function waitForReservation(requestId) {
   for (let attempt = 0; attempt < 12; attempt++) {
     await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 1200 : 1800));
     try {
-      const result = await checkReservation(requestId);
-      if (result && ['SUCCESS', 'FAILED', 'REVIEW', 'ERROR'].includes(result.status)) return result;
-    } catch (err) {
-      console.warn('Statuscontrole:', err);
+      const status = await checkReservation(requestId);
+      if (status.status === "SUCCESS" || status.status === "FAILED" || status.status === "REVIEW") {
+        return status;
+      }
+    } catch (error) {
+      console.warn("Statuscontrole:", error);
     }
   }
-  return {status: 'UNKNOWN'};
+  return { status: "UNKNOWN" };
 }
 
 async function orderViaWhatsApp() {
   if (orderSubmitting || !cart.length) return;
-  const pendingText = localStorage.getItem(PENDING_ORDER_KEY);
-  if (pendingText) {
-    let pending = null;
-    try { pending = JSON.parse(pendingText); } catch (_) {}
-    const previousId = pending && (pending.requestId || (pending.orderData && pending.orderData.requestId));
-    if (!previousId) {
-      alert('Er staat een onduidelijke eerdere aanvraag in deze browser. Controleer eerst Bestellingen en RESERVERINGEN voordat je opnieuw bestelt.');
-      return;
-    }
-    try {
-      const status = await checkReservation(previousId);
-      if (status.status === 'SUCCESS') {
-        localStorage.removeItem(PENDING_ORDER_KEY);
-        alert('Eerdere bestelling is al geregistreerd: ' + (status.orderNumber || previousId));
-      } else if (status.status === 'FAILED') {
-        localStorage.removeItem(PENDING_ORDER_KEY);
-        alert('Eerdere aanvraag is afgewezen. Controleer eerst de voorraad en probeer daarna opnieuw.');
-      } else {
-        alert('Eerdere aanvraag niet bevestigd. Controleer RESERVERINGEN op aanvraag ' + previousId + '. Niet opnieuw bestellen voordat dit is gecontroleerd.');
-      }
-    } catch (_) {
-      alert('De eerdere aanvraag kan niet worden gecontroleerd. Controleer RESERVERINGEN op ' + previousId + '.');
-    }
+
+  // Onzekere eerdere bestelling eerst afhandelen: nooit een nieuw ID maken.
+  const pending = readPendingOrder();
+  if (pending) {
+    alert("Er staat nog een bestelling klaar waarvan de status onbekend is. Controleer eerst de bestelling in Google Sheets (tabblad RESERVERINGEN). Plaats nog geen nieuwe bestelling; zo voorkomen we dubbele bestellingen.");
     return;
   }
 
-  const customerName = document.getElementById('customer-name').value.trim();
-  const phone = document.getElementById('customer-phone').value.trim();
-  const pickupDate = document.getElementById('pickup-date').value;
-  const pickupTime = document.getElementById('pickup-time').value;
-  const remark = document.getElementById('customer-remark').value.trim();
-  if (!customerName || !phone || !pickupDate || !pickupTime) {
-    alert('Vul naam, telefoonnummer en ophaalmoment in.');
-    return;
-  }
-  const orderItems = cart.map(item => ({
-    productId: item.productId || productId(products[item.productIndex]),
-    model: item.model, color: item.color, size: item.size,
-    quantity: item.quantity, price: item.price
-  }));
+  const customerName = document.getElementById("customer-name").value.trim();
+  const phone = document.getElementById("customer-phone").value.trim();
+  const pickupDate = document.getElementById("pickup-date").value;
+  const pickupTime = document.getElementById("pickup-time").value;
+  const remark = document.getElementById("customer-remark").value.trim();
+  if (!customerName) return alert("Vul eerst je naam in.");
+  if (!phone) return alert("Vul eerst je telefoonnummer in.");
+  if (!pickupDate || !pickupTime) return alert("Kies eerst een beschikbare ophaaldatum en tijd.");
+
+  let total = 0;
+  let message = `${getGreeting()} Swim Academy Splash! 👋\n\nIk wil graag de volgende bestelling plaatsen:\n\n`;
+  const orderItems = cart.map(item => {
+    const subtotal = item.price * item.quantity;
+    total += subtotal;
+    const id = item.productId || productId(products[item.productIndex]);
+    message += `${item.quantity}x ${item.model}\n${item.color ? `Kleur: ${item.color}\n` : ""}Maat: ${item.size}\nPrijs: $${item.price.toFixed(2)} per stuk\nSubtotaal: $${subtotal.toFixed(2)}\n\n`;
+    return { productId: id, model: item.model, color: item.color, size: item.size,
+      quantity: item.quantity, price: item.price, subtotal };
+  });
   if (orderItems.some(item => !item.productId)) {
-    alert('Product_ID ontbreekt. Vernieuw de pagina.');
+    alert("Er ontbreekt een Product_ID. Ververs de webshop en probeer opnieuw.");
     return;
   }
-  const requestId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() :
-    'bk-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  const requestId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() :
+    "bk-" + Date.now() + "-" + Math.random().toString(36).slice(2);
   const orderData = { requestId, customerName, phone, pickupDate, pickupTime,
-    pickupLocation: 'Hill Side', remark, items: orderItems };
+    pickupLocation: "Hill Side", remark, items: orderItems };
+  message += `Totaal: $${total.toFixed(2)}\n\nNaam: ${customerName}\nTelefoonnummer: ${phone}\nOphaalmoment: ${pickupDate} om ${pickupTime}\nOphaallocatie: Hill Side\nOpmerking: ${remark || "Geen"}`;
 
-  // Sla op vóór verzending, zodat een onzekere aanvraag nooit opnieuw wordt aangemaakt.
-  localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({requestId, createdAt:Date.now()}));
-  const button = document.getElementById('whatsapp-button');
+  // WhatsApp-tab nu openen, zodat popupblockers hem niet na de async-call blokkeren.
+  const whatsappTab = window.open("about:blank", "_blank");
+  const button = document.getElementById("whatsapp-button");
   orderSubmitting = true;
   button.disabled = true;
-  button.textContent = 'Bestelling verwerken...';
+  button.textContent = "Bestelling verwerken...";
+  localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({ requestId, createdAt: Date.now() }));
+
   try {
-    // Het oorspronkelijke Apps Script leest JSON uit e.postData.contents.
-    // Een no-cors fetch bevestigt GEEN succes; alleen RESERVERINGEN kan dat doen.
     await fetch(ORDER_WEB_APP_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(orderData)
     });
     const result = await waitForReservation(requestId);
-    if (result.status === 'SUCCESS') {
+    if (result.status === "SUCCESS") {
       localStorage.removeItem(PENDING_ORDER_KEY);
-      let total = 0;
-      let message = `${getGreeting()} Swim Academy Splash! 👋\n\nBestelnummer: ${result.orderNumber}\n\nIk wil graag de volgende bestelling plaatsen:\n\n`;
-      orderItems.forEach(item => {
-        const sub = Number(item.price) * Number(item.quantity);
-        total += sub;
-        message += `${item.quantity}x ${item.model}\n${item.color ? 'Kleur: '+item.color+'\n' : ''}Maat: ${item.size}\nPrijs: $${Number(item.price).toFixed(2)} per stuk\nSubtotaal: $${sub.toFixed(2)}\n\n`;
-      });
-      message += `Totaal: $${total.toFixed(2)}\n\nNaam: ${customerName}\nTelefoon: ${phone}\nOphalen: ${pickupDate} om ${pickupTime} bij Hill Side\nOpmerking: ${remark || 'Geen'}`;
+      message = `Bestelnummer: ${result.orderNumber}\n\n` + message;
+      const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+      if (whatsappTab) whatsappTab.location.href = url;
+      else window.location.href = url;
+      // De gepubliceerde CSV kan even achterlopen: voorraad niet direct lokaal hergebruiken.
       cart = [];
       updateCart();
-      // Zelfde tabblad: geen leeg about:blank-tabblad of pop-upblokkade.
-      window.location.assign('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(message));
-    } else if (result.status === 'FAILED') {
+      alert("Je bestelling is geplaatst en de voorraad is bijgewerkt! Je kunt het bestelbericht nu via WhatsApp versturen.");
+    } else if (result.status === "FAILED") {
       localStorage.removeItem(PENDING_ORDER_KEY);
-      alert('Bestelling afgewezen: ' + (result.error || 'Controleer de voorraad.'));
+      if (whatsappTab) whatsappTab.close();
+      alert("Bestelling niet gelukt: " + (result.error || "Controleer de voorraad en probeer opnieuw."));
     } else {
-      alert('Bestelling niet bevestigd. Controleer RESERVERINGEN op ' + requestId + ' voordat je opnieuw bestelt.');
+      if (whatsappTab) whatsappTab.close();
+      alert("We kunnen nog niet bevestigen of je bestelling is verwerkt. Plaats GEEN tweede bestelling. Vraag de winkel om het tabblad RESERVERINGEN te controleren met ID: " + requestId);
     }
-  } catch (err) {
-    console.error('Bestelverwerking:', err);
-    alert('Geen bevestiging ontvangen. Controleer RESERVERINGEN op ' + requestId + ' voordat je opnieuw bestelt.');
+  } catch (error) {
+    if (whatsappTab) whatsappTab.close();
+    console.error(error);
+    alert("De status van je bestelling is onbekend. Probeer niet opnieuw te bestellen; laat de winkel RESERVERINGEN controleren. ID: " + requestId);
   } finally {
     orderSubmitting = false;
-    button.disabled = !cart.length;
-    button.textContent = 'Bestellen via WhatsApp';
+    button.disabled = false;
+    button.textContent = "Bestellen via WhatsApp";
   }
 }
 
