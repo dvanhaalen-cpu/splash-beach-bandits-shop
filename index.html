@@ -4662,7 +4662,7 @@ async function waitForReservation(requestId) {
     await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 1200 : 1800));
     try {
       const status = await checkReservation(requestId);
-      if (status.status === "SUCCESS" || status.status === "FAILED" || status.status === "REVIEW") {
+      if (status.status === "SUCCESS" || status.status === "FAILED" || status.status === "REVIEW" || status.status === "ERROR") {
         return status;
       }
     } catch (error) {
@@ -4678,7 +4678,20 @@ async function orderViaWhatsApp() {
   // Onzekere eerdere bestelling eerst afhandelen: nooit een nieuw ID maken.
   const pending = readPendingOrder();
   if (pending) {
-    alert("Er staat nog een bestelling klaar waarvan de status onbekend is. Controleer eerst de bestelling in Google Sheets (tabblad RESERVERINGEN). Plaats nog geen nieuwe bestelling; zo voorkomen we dubbele bestellingen.");
+    try {
+      const status = await checkReservation(pending.requestId);
+      if (status.status === "FAILED" || status.status === "ERROR") {
+        localStorage.removeItem(PENDING_ORDER_KEY);
+        alert("Vorige bestelling niet verwerkt: " + (status.error || "onbekende fout") + ". Je kunt opnieuw bestellen.");
+      } else if (status.status === "SUCCESS") {
+        localStorage.removeItem(PENDING_ORDER_KEY);
+        alert("Vorige bestelling is al geregistreerd (" + status.orderNumber + "). Controleer Google Sheets en plaats niet dezelfde bestelling opnieuw.");
+      } else {
+        alert("Een eerdere bestelling is nog onzeker (" + pending.requestId + "). Controleer RESERVERINGEN voordat je opnieuw bestelt.");
+      }
+    } catch (error) {
+      alert("Kan eerdere bestelling niet controleren. Controleer RESERVERINGEN met ID " + pending.requestId + ".");
+    }
     return;
   }
 
@@ -4736,7 +4749,7 @@ async function orderViaWhatsApp() {
       cart = [];
       updateCart();
       alert("Je bestelling is geplaatst en de voorraad is bijgewerkt! Je kunt het bestelbericht nu via WhatsApp versturen.");
-    } else if (result.status === "FAILED") {
+    } else if (result.status === "FAILED" || result.status === "ERROR") {
       localStorage.removeItem(PENDING_ORDER_KEY);
       if (whatsappTab) whatsappTab.close();
       alert("Bestelling niet gelukt: " + (result.error || "Controleer de voorraad en probeer opnieuw."));
