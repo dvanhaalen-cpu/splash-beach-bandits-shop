@@ -1787,51 +1787,51 @@ body { background: var(--page-cream); }
 .pickup-wizard #pickup-date { width:100%; min-height:47px; border:1px solid #cbdde3; border-radius:11px; background:#fff; padding:10px 12px; color:#1e556b; font:inherit; }
 .pickup-wizard #pickup-date:disabled { opacity:.55; }
 @media(max-width:520px){ .pickup-day-buttons,.pickup-time-buttons {grid-template-columns:repeat(2,minmax(0,1fr));} }
-/* COMPACTE VASTE HEADER MET LOGO EN WINKELWAGEN */
+
+/* VASTE WITTE BALK MET LOGO EN WINKELWAGEN */
 header {
-  position: sticky !important;
+  position: fixed !important;
   top: 0;
+  left: 0;
+  width: 100%;
   z-index: 9999;
-  background: white;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.10);
 }
 
-/* De winkelwagen blijft netjes in de witte balk */
+/* Bovenruimte zodat de website niet achter de balk valt */
+body {
+  padding-top: 90px;
+}
+
+/* Compacte witte balk */
+.navbar {
+  padding: 8px 20px !important;
+  min-height: 65px;
+}
+
+/* Winkelwagen terug op de juiste plek */
 .cart-button {
-  position: relative !important;
-  top: auto !important;
-  right: auto !important;
-  box-shadow: none;
+  position: static !important;
+  box-shadow: none !important;
 }
 
-/* Header compacter maken */
-header .container {
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-
-header img {
-  max-height: 70px;
-  width: auto;
-  object-fit: contain;
-}
-
-/* Mobiele versie */
+/* MOBIEL */
 @media (max-width: 768px) {
-  header .container {
-    padding-top: 8px;
-    padding-bottom: 8px;
+  body {
+    padding-top: 70px;
   }
 
-  header img {
-    max-height: 52px;
+  .navbar {
+    padding: 7px 12px !important;
+    min-height: 55px;
   }
 
   .cart-button {
-    padding: 10px 12px;
+    padding: 9px 12px !important;
+    font-size: 12px;
   }
 }
-
 
 </style>
 
