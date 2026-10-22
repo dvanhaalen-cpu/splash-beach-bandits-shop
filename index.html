@@ -1787,6 +1787,25 @@ body { background: var(--page-cream); }
 .pickup-wizard #pickup-date { width:100%; min-height:47px; border:1px solid #cbdde3; border-radius:11px; background:#fff; padding:10px 12px; color:#1e556b; font:inherit; }
 .pickup-wizard #pickup-date:disabled { opacity:.55; }
 @media(max-width:520px){ .pickup-day-buttons,.pickup-time-buttons {grid-template-columns:repeat(2,minmax(0,1fr));} }
+
+/* WINKELWAGEN ALTIJD ZICHTBAAR */
+.cart-button {
+  position: fixed !important;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.18);
+}
+
+/* WINKELWAGEN OP MOBIEL */
+@media (max-width: 768px) {
+  .cart-button {
+    top: 15px;
+    right: 15px;
+    padding: 12px 16px;
+  }
+}
+
 </style>
 
 <link rel="icon" type="image/png" href="Beach Kids Bonaire-logo.png">
