@@ -4628,71 +4628,104 @@ function getGreeting() {
 }
 
 
-// Bestelling direct via WhatsApp openen; Apps Script ontvangt daarnaast
-// een kopie voor het tabblad Bestellingen. Geen voorraadreservering.
-function orderViaWhatsApp() {
-  if (orderSubmitting || !cart.length) return;
+// Bestelling: eerst registreren en voorraad bijwerken, daarna WhatsApp openen.
+// Aanvraag-ID uitsluitend om de tijdelijke verwerkingsstatus op te vragen.
 
-  const customerName = document.getElementById("customer-name").value.trim();
-  const phone = document.getElementById("customer-phone").value.trim();
-  const pickupDate = document.getElementById("pickup-date").value;
-  const pickupTime = document.getElementById("pickup-time").value;
-  const remark = document.getElementById("customer-remark").value.trim();
-  if (!customerName) return alert("Vul eerst je naam in.");
-  if (!phone) return alert("Vul eerst je telefoonnummer in.");
-  if (!pickupDate || !pickupTime) return alert("Kies eerst een beschikbare ophaaldatum en tijd.");
-
-  let total = 0;
-  let message = `${getGreeting()} Swim Academy Splash! 👋\n\nIk wil graag de volgende bestelling plaatsen:\n\n`;
-  const orderItems = cart.map(item => {
-    const subtotal = item.price * item.quantity;
-    total += subtotal;
-    message += `${item.quantity}x ${item.model}\n${item.color ? `Kleur: ${item.color}\n` : ""}Maat: ${item.size}\nPrijs: $${item.price.toFixed(2)} per stuk\nSubtotaal: $${subtotal.toFixed(2)}\n\n`;
-    return {
-      model: item.model,
-      color: item.color,
-      size: item.size,
-      quantity: item.quantity,
-      price: item.price,
-      subtotal
-    };
+function newOrderId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'BK-' + Date.now() + '-' + Math.random().toString(36).slice(2,12);
+}
+function checkOrderStatus(requestId) {
+  return new Promise((resolve, reject) => {
+    const callback = 'bkStatus_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    const timeout = setTimeout(() => finish(null, new Error('Statuscontrole duurde te lang')), 10000);
+    function finish(value, error) {
+      clearTimeout(timeout);
+      delete window[callback];
+      script.remove();
+      if (error) reject(error); else resolve(value);
+    }
+    window[callback] = value => finish(value);
+    script.onerror = () => finish(null, new Error('Statuscontrole niet bereikbaar'));
+    script.src = ORDER_WEB_APP_URL + '?action=status&requestId=' + encodeURIComponent(requestId) + '&callback=' + callback + '&t=' + Date.now();
+    document.head.appendChild(script);
   });
-  message += `Totaal: $${total.toFixed(2)}\n\nNaam: ${customerName}\nTelefoonnummer: ${phone}\nOphaalmoment: ${pickupDate} om ${pickupTime}\nOphaallocatie: Hill Side\nOpmerking: ${remark || "Geen"}`;
-
-  const orderData = {
-    customerName, phone, pickupDate, pickupTime,
-    pickupLocation: "Hill Side", remark, items: orderItems
-  };
-  const button = document.getElementById("whatsapp-button");
+}
+async function waitForOrderStatus(requestId) {
+  for (let attempt=0; attempt<14; attempt++) {
+    const result = await checkOrderStatus(requestId);
+    if (['SUCCESS','FAILED','REVIEW','PROCESSING','ERROR'].includes(result.status)) {
+      if (result.status === 'PROCESSING' && attempt < 13) {
+        await new Promise(resolve => setTimeout(resolve, 1400));
+        continue;
+      }
+      return result;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1400));
+  }
+  return {status:'PENDING'};
+}
+async function orderViaWhatsApp() {
+  if (orderSubmitting || !cart.length) return;
+  const customerName = document.getElementById('customer-name').value.trim();
+  const phone = document.getElementById('customer-phone').value.trim();
+  const pickupDate = document.getElementById('pickup-date').value;
+  const pickupTime = document.getElementById('pickup-time').value;
+  const remark = document.getElementById('customer-remark').value.trim();
+  if (!customerName) return alert('Vul eerst je naam in.');
+  if (!phone) return alert('Vul eerst je telefoonnummer in.');
+  if (!pickupDate || !pickupTime) return alert('Kies eerst een beschikbare ophaaldatum en tijd.');
+  const orderItems = cart.map(item => ({
+    productId:item.productId, model:item.model, color:item.color,
+    size:item.size, quantity:item.quantity, price:item.price
+  }));
+  if (orderItems.some(item => !item.productId)) return alert('Een product mist een productnummer. Vernieuw de pagina en probeer opnieuw.');
+  const orderData = {customerName,phone,pickupDate,pickupTime,pickupLocation:'Hill Side',remark,items:orderItems};
+  const requestId = newOrderId();
+  orderData.requestId = requestId;
+  const button = document.getElementById('whatsapp-button');
+  const originalText = button.textContent;
   orderSubmitting = true;
   button.disabled = true;
-
-  // Open WhatsApp meteen vanuit de klik; wacht niet op Apps Script.
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-  const whatsappWindow = window.open(url, "_blank");
-  if (!whatsappWindow) {
-    // Popupblokkade: gebruik het huidige tabblad als terugval.
-    window.location.href = url;
-  }
-
-  // De bestaande Apps Script-doPost schrijft naar Bestellingen.
-  // no-cors biedt geen leesbare ontvangstbevestiging: niet claimen dat
-  // de bestelling zeker in Google Sheets is opgeslagen.
-  if (ORDER_WEB_APP_URL) {
-    fetch(ORDER_WEB_APP_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(orderData),
-      keepalive: true
-    }).catch(error => console.error("Bestelling naar Google Sheets verzenden mislukt:", error));
-  }
-
-  // Winkelmandje behouden tot de klant zelf het WhatsApp-bericht verstuurt.
-  setTimeout(() => {
+  button.textContent = 'Bestelling controleren...';
+  try {
+    if (!ORDER_WEB_APP_URL) throw new Error('De Google Sheets-koppeling ontbreekt.');
+    let status;
+    {
+      // Browser kan Apps Script door CORS niet rechtstreeks uitlezen.
+      // De status wordt daarom via de bestaande JSONP-doGet gecontroleerd.
+      await fetch(ORDER_WEB_APP_URL, {
+        method:'POST',mode:'no-cors',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify(orderData),keepalive:true
+      });
+      status = await waitForOrderStatus(requestId);
+    }
+    if (status.status !== 'SUCCESS') {
+      if (status.status === 'REVIEW' || status.status === 'PROCESSING') {
+        throw new Error('De bestelling moet eerst handmatig gecontroleerd worden. Probeer niet opnieuw met een andere bestelling.');
+      }
+      throw new Error(status.error || 'De bestelling kon niet worden bevestigd. Controleer eerst Bestellingen en Producten voordat je opnieuw probeert: zonder dubbele-bestellingcontrole kan een nieuwe poging opnieuw voorraad afboeken.');
+    }
+    let total = 0;
+    let message = `${getGreeting()} Swim Academy Splash! 👋\n\nMijn bestelling is geregistreerd (${status.orderNumber}):\n\n`;
+    cart.forEach(item => {
+      const subtotal = item.price * item.quantity;
+      total += subtotal;
+      message += `${item.quantity}x ${item.model}\n${item.color ? `Kleur: ${item.color}\n` : ''}Maat: ${item.size}\nPrijs: $${item.price.toFixed(2)} per stuk\nSubtotaal: $${subtotal.toFixed(2)}\n\n`;
+    });
+    message += `Totaal: $${total.toFixed(2)}\n\nNaam: ${customerName}\nTelefoonnummer: ${phone}\nOphaalmoment: ${pickupDate} om ${pickupTime}\nOphaallocatie: Hill Side\nOpmerking: ${remark || 'Geen'}`;
+    // Navigeren in hetzelfde tabblad voorkomt dat een popup na de wachttijd wordt geblokkeerd.
+    window.location.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  } catch (error) {
+    console.error('Bestelling niet bevestigd:',error);
+    alert('Bestelling nog niet bevestigd: ' + error.message + '\n\nWhatsApp is daarom nog niet geopend.');
+  } finally {
     orderSubmitting = false;
     button.disabled = false;
-  }, 1500);
+    button.textContent = originalText;
+  }
 }
 
 /* =====================================================
