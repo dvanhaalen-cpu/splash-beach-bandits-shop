@@ -95,18 +95,27 @@ img {
    NAVBAR
    ===================================================== */
 
+/* Witte balk met logo en winkelwagen */
 .navbar {
   max-width: 1200px;
-
   margin: auto;
-  padding: 16px 25px;
-
+  padding: 8px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  gap: 20px;
+  gap: 16px;
 }
+
+/* Buitenste balk blijft zichtbaar tijdens scrollen */
+.sticky-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 2000;
+  width: 100%;
+  background: white;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+}
+
 
 .brand {
   color: var(--midnight);
@@ -1787,51 +1796,6 @@ body { background: var(--page-cream); }
 .pickup-wizard #pickup-date { width:100%; min-height:47px; border:1px solid #cbdde3; border-radius:11px; background:#fff; padding:10px 12px; color:#1e556b; font:inherit; }
 .pickup-wizard #pickup-date:disabled { opacity:.55; }
 @media(max-width:520px){ .pickup-day-buttons,.pickup-time-buttons {grid-template-columns:repeat(2,minmax(0,1fr));} }
-
-/* VASTE WITTE BALK MET LOGO EN WINKELWAGEN */
-header {
-  position: fixed !important;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 9999;
-  background: #ffffff;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.10);
-}
-
-/* Bovenruimte zodat de website niet achter de balk valt */
-body {
-  padding-top: 90px;
-}
-
-/* Compacte witte balk */
-.navbar {
-  padding: 8px 20px !important;
-  min-height: 65px;
-}
-
-/* Winkelwagen terug op de juiste plek */
-.cart-button {
-  position: static !important;
-  box-shadow: none !important;
-}
-
-/* MOBIEL */
-@media (max-width: 768px) {
-  body {
-    padding-top: 70px;
-  }
-
-  .navbar {
-    padding: 7px 12px !important;
-    min-height: 55px;
-  }
-
-  .cart-button {
-    padding: 9px 12px !important;
-    font-size: 12px;
-  }
-}
 
 </style>
 
