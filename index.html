@@ -4869,6 +4869,122 @@ restartHeroTimer();
 updateCart();
 
 </script>
+<!-- BEACH KIDS BONAIRE - eenvoudige WhatsApp-bestelling
+     Plak dit blok helemaal onderaan de BESTAANDE index.html, direct vóór </body>.
+     Dit overschrijft alleen de oude orderViaWhatsApp-functie.
+     Producten, voorraadweergave, foto's, maten en de rest van de pagina blijven intact.
+-->
+<script>
+(() => {
+  const ORDER_ENDPOINT =
+    'https://script.google.com/macros/s/AKfycbzAY1zMe_oXPF2NKrjO3qSlpnBE80b8icEmvFdB5kMD9-uMIPUDaZ-IOBNjn8flySnYew/exec';
 
+  // Ruim de browserblokkade uit de vroegere reserveringsversie op.
+  try {
+    localStorage.removeItem('beachkids_pending_order_v1');
+    localStorage.removeItem('beachkids_checkout_pending_v2');
+  } catch (_) {}
+
+  let sending = false;
+
+  window.orderViaWhatsApp = function orderViaWhatsApp() {
+    if (sending) return;
+    if (!Array.isArray(cart) || !cart.length) {
+      alert('Voeg eerst een product toe aan je winkelmandje.');
+      return;
+    }
+
+    const name = document.getElementById('customer-name').value.trim();
+    const phone = document.getElementById('customer-phone').value.trim();
+    const pickupDate = document.getElementById('pickup-date').value;
+    const pickupTime = document.getElementById('pickup-time').value;
+    const remark = document.getElementById('customer-remark').value.trim();
+
+    if (!name || !phone) {
+      alert('Vul je naam en telefoonnummer in.');
+      return;
+    }
+    if (!pickupDate || !pickupTime) {
+      alert('Kies eerst een ophaaldatum en tijd.');
+      return;
+    }
+
+    let total = 0;
+    const items = cart.map(item => {
+      const quantity = Number(item.quantity);
+      const price = Number(item.price);
+      const subtotal = quantity * price;
+      total += subtotal;
+      return {
+        model: String(item.model || ''),
+        color: String(item.color || ''),
+        size: String(item.size || ''),
+        quantity, price, subtotal
+      };
+    });
+
+    const order = {
+      customerName: name,
+      phone,
+      pickupDate,
+      pickupTime,
+      remark,
+      items
+    };
+
+    const lines = [
+      '🛍️ NIEUWE BESTELLING BEACH KIDS BONAIRE',
+      '',
+      ...items.flatMap(item => [
+        `${item.quantity}x ${item.model}`,
+        ...(item.color ? [`Kleur: ${item.color}`] : []),
+        `Maat: ${item.size}`,
+        `Subtotaal: $${item.subtotal.toFixed(2)}`,
+        ''
+      ]),
+      `Totaal: $${total.toFixed(2)}`,
+      '',
+      `Naam: ${name}`,
+      `Telefoon: ${phone}`,
+      `Ophalen: ${pickupDate} om ${pickupTime} bij Hill Side`,
+      `Opmerking: ${remark || 'Geen'}`
+    ];
+    const url = 'https://wa.me/' + WHATSAPP_NUMBER +
+      '?text=' + encodeURIComponent(lines.join('\n'));
+
+    sending = true;
+
+    // Fire-and-forget: registreer ook in Sheets. Dit blokkeert WhatsApp niet.
+    // Let op: de browser geeft hiermee géén garantie dat de Sheet is bijgewerkt.
+    const payload = JSON.stringify(order);
+    let queued = false;
+    if (navigator.sendBeacon) {
+      try {
+        queued = navigator.sendBeacon(
+          ORDER_ENDPOINT,
+          new Blob([payload], {type:'text/plain;charset=UTF-8'})
+        );
+      } catch (err) {
+        console.warn('sendBeacon:', err);
+      }
+    }
+    if (!queued) {
+      fetch(ORDER_ENDPOINT, {
+        method: 'POST',
+        mode: 'no-cors',
+        keepalive: true,
+        headers: {'Content-Type':'text/plain;charset=UTF-8'},
+        body: payload
+      }).catch(err => console.error('Bestelling registreren:', err));
+    }
+
+    // WhatsApp direct openen, zonder statuscontrole of extra bevestigingsscherm.
+    const popup = window.open(url, '_blank');
+    if (!popup) window.location.assign(url);
+
+    setTimeout(() => { sending = false; }, 1200);
+  };
+})();
+</script>
 </body>
 </html>
