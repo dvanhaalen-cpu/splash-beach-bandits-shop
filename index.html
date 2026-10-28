@@ -1798,6 +1798,23 @@ body { background: var(--page-cream); }
 .pickup-wizard #pickup-date:disabled { opacity:.55; }
 @media(max-width:520px){ .pickup-day-buttons,.pickup-time-buttons {grid-template-columns:repeat(2,minmax(0,1fr));} }
 
+
+/* Kortingscode in het winkelmandje */
+.discount-box { margin-top:18px; padding:16px; border:1px solid var(--border); border-radius:12px; background:#fff; }
+.discount-box label { display:block; margin-bottom:9px; font-size:13px; font-weight:700; color:var(--midnight); }
+.discount-input-row { display:flex; gap:8px; }
+.discount-input-row input { flex:1; min-width:0; padding:11px 12px; border:1px solid var(--border); border-radius:8px; font:inherit; font-size:13px; }
+.discount-input-row button { padding:11px 13px; border:0; border-radius:8px; color:#fff; background:var(--midnight); font-weight:700; }
+.discount-input-row button:disabled { opacity:.6; }
+.discount-feedback { font:12px/1.5 Arial,sans-serif; margin-top:8px; color:var(--muted); }
+.discount-feedback.ok { color:#147548; }
+.discount-feedback.error { color:#a33d3d; }
+.discount-breakdown { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); font:13px/1.7 Arial,sans-serif; }
+.discount-breakdown[hidden] { display:none; }
+.discount-breakdown .discount-line { display:flex; justify-content:space-between; gap:10px; }
+.discount-breakdown .discount-line:last-child { font-weight:700; color:var(--midnight); }
+@media (max-width:390px) { .discount-input-row button { padding:10px 9px; font-size:12px; } }
+
 </style>
 
 <link rel="icon" type="image/png" href="Beach Kids Bonaire-logo.png">
@@ -2093,6 +2110,16 @@ body { background: var(--page-cream); }
 
   <div id="cart-items"></div>
 
+
+  <div class="discount-box" id="discount-box">
+    <label for="discount-code">Heb je een kortingscode?</label>
+    <div class="discount-input-row">
+      <input id="discount-code" type="text" placeholder="Bijv. SPLASH10" maxlength="40" autocomplete="off" aria-label="Kortingscode">
+      <button type="button" id="discount-apply" onclick="applyDiscount()">Toepassen</button>
+    </div>
+    <div id="discount-feedback" class="discount-feedback" aria-live="polite"></div>
+    <div id="discount-breakdown" class="discount-breakdown" hidden></div>
+  </div>
 
   <div
     class="cart-summary"
@@ -4222,6 +4249,7 @@ function updateCart() {
 
     summary.style.display =
       "none";
+    document.getElementById('discount-box').style.display = 'none';
 
 
     customerForm.style.display =
@@ -4239,6 +4267,7 @@ function updateCart() {
 
   summary.style.display =
     "block";
+  document.getElementById('discount-box').style.display = 'block';
 
 
   customerForm.style.display =
@@ -4641,105 +4670,7 @@ function getGreeting() {
 }
 
 
-// Bestelling: eerst registreren en voorraad bijwerken, daarna WhatsApp openen.
-// Aanvraag-ID uitsluitend om de tijdelijke verwerkingsstatus op te vragen.
-
-function newOrderId() {
-  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  return 'BK-' + Date.now() + '-' + Math.random().toString(36).slice(2,12);
-}
-function checkOrderStatus(requestId) {
-  return new Promise((resolve, reject) => {
-    const callback = 'bkStatus_' + Math.random().toString(36).slice(2);
-    const script = document.createElement('script');
-    const timeout = setTimeout(() => finish(null, new Error('Statuscontrole duurde te lang')), 10000);
-    function finish(value, error) {
-      clearTimeout(timeout);
-      delete window[callback];
-      script.remove();
-      if (error) reject(error); else resolve(value);
-    }
-    window[callback] = value => finish(value);
-    script.onerror = () => finish(null, new Error('Statuscontrole niet bereikbaar'));
-    script.src = ORDER_WEB_APP_URL + '?action=status&requestId=' + encodeURIComponent(requestId) + '&callback=' + callback + '&t=' + Date.now();
-    document.head.appendChild(script);
-  });
-}
-async function waitForOrderStatus(requestId) {
-  for (let attempt=0; attempt<14; attempt++) {
-    const result = await checkOrderStatus(requestId);
-    if (['SUCCESS','FAILED','REVIEW','PROCESSING','ERROR'].includes(result.status)) {
-      if (result.status === 'PROCESSING' && attempt < 13) {
-        await new Promise(resolve => setTimeout(resolve, 1400));
-        continue;
-      }
-      return result;
-    }
-    await new Promise(resolve => setTimeout(resolve, 1400));
-  }
-  return {status:'PENDING'};
-}
-async function orderViaWhatsApp() {
-  if (orderSubmitting || !cart.length) return;
-  const customerName = document.getElementById('customer-name').value.trim();
-  const phone = document.getElementById('customer-phone').value.trim();
-  const pickupDate = document.getElementById('pickup-date').value;
-  const pickupTime = document.getElementById('pickup-time').value;
-  const remark = document.getElementById('customer-remark').value.trim();
-  if (!customerName) return alert('Vul eerst je naam in.');
-  if (!phone) return alert('Vul eerst je telefoonnummer in.');
-  if (!pickupDate || !pickupTime) return alert('Kies eerst een beschikbare ophaaldatum en tijd.');
-  const orderItems = cart.map(item => ({
-    productId:item.productId, model:item.model, color:item.color,
-    size:item.size, quantity:item.quantity, price:item.price
-  }));
-  if (orderItems.some(item => !item.productId)) return alert('Een product mist een productnummer. Vernieuw de pagina en probeer opnieuw.');
-  const orderData = {customerName,phone,pickupDate,pickupTime,pickupLocation:'Hill Side',remark,items:orderItems};
-  const requestId = newOrderId();
-  orderData.requestId = requestId;
-  const button = document.getElementById('whatsapp-button');
-  const originalText = button.textContent;
-  orderSubmitting = true;
-  button.disabled = true;
-  button.textContent = 'Bestelling controleren...';
-  try {
-    if (!ORDER_WEB_APP_URL) throw new Error('De Google Sheets-koppeling ontbreekt.');
-    let status;
-    {
-      // Browser kan Apps Script door CORS niet rechtstreeks uitlezen.
-      // De status wordt daarom via de bestaande JSONP-doGet gecontroleerd.
-      await fetch(ORDER_WEB_APP_URL, {
-        method:'POST',mode:'no-cors',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify(orderData),keepalive:true
-      });
-      status = await waitForOrderStatus(requestId);
-    }
-    if (status.status !== 'SUCCESS') {
-      if (status.status === 'REVIEW' || status.status === 'PROCESSING') {
-        throw new Error('De bestelling moet eerst handmatig gecontroleerd worden. Probeer niet opnieuw met een andere bestelling.');
-      }
-      throw new Error(status.error || 'De bestelling kon niet worden bevestigd. Controleer eerst Bestellingen en Producten voordat je opnieuw probeert: zonder dubbele-bestellingcontrole kan een nieuwe poging opnieuw voorraad afboeken.');
-    }
-    let total = 0;
-    let message = `${getGreeting()} Swim Academy Splash! 👋\n\nMijn bestelling is geregistreerd (${status.orderNumber}):\n\n`;
-    cart.forEach(item => {
-      const subtotal = item.price * item.quantity;
-      total += subtotal;
-      message += `${item.quantity}x ${item.model}\n${item.color ? `Kleur: ${item.color}\n` : ''}Maat: ${item.size}\nPrijs: $${item.price.toFixed(2)} per stuk\nSubtotaal: $${subtotal.toFixed(2)}\n\n`;
-    });
-    message += `Totaal: $${total.toFixed(2)}\n\nNaam: ${customerName}\nTelefoonnummer: ${phone}\nOphaalmoment: ${pickupDate} om ${pickupTime}\nOphaallocatie: Hill Side\nOpmerking: ${remark || 'Geen'}`;
-    // Navigeren in hetzelfde tabblad voorkomt dat een popup na de wachttijd wordt geblokkeerd.
-    window.location.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-  } catch (error) {
-    console.error('Bestelling niet bevestigd:',error);
-    alert('Bestelling nog niet bevestigd: ' + error.message + '\n\nWhatsApp is daarom nog niet geopend.');
-  } finally {
-    orderSubmitting = false;
-    button.disabled = false;
-    button.textContent = originalText;
-  }
-}
+// De actuele WhatsApp-bestelprocedure met kortingscodes staat onderaan deze pagina.
 
 /* =====================================================
    HELPERS
@@ -4882,120 +4813,145 @@ restartHeroTimer();
 updateCart();
 
 </script>
-<!-- BEACH KIDS BONAIRE - eenvoudige WhatsApp-bestelling
-     Plak dit blok helemaal onderaan de BESTAANDE index.html, direct vóór </body>.
-     Dit overschrijft alleen de oude orderViaWhatsApp-functie.
-     Producten, voorraadweergave, foto's, maten en de rest van de pagina blijven intact.
--->
+<!-- BEACH KIDS BONAIRE: DIRECT WHATSAPP + KORTINGSCODES -->
 <script>
 (() => {
-  const ORDER_ENDPOINT =
-    'https://script.google.com/macros/s/AKfycbzAY1zMe_oXPF2NKrjO3qSlpnBE80b8icEmvFdB5kMD9-uMIPUDaZ-IOBNjn8flySnYew/exec';
-
-  // Ruim de browserblokkade uit de vroegere reserveringsversie op.
-  try {
-    localStorage.removeItem('beachkids_pending_order_v1');
-    localStorage.removeItem('beachkids_checkout_pending_v2');
-  } catch (_) {}
-
+  const ORDER_ENDPOINT = ORDER_WEB_APP_URL;
   let sending = false;
+  let applied = null;
+  let appliedSubtotal = null;
+  const money = n => '$' + Number(n).toFixed(2);
+  const subtotal = () => Math.round(cart.reduce((sum,i) => sum + Number(i.price)*Number(i.quantity),0)*100)/100;
+  const codeInput = () => document.getElementById('discount-code');
+  const feedback = (message, state='') => {
+    const el = document.getElementById('discount-feedback');
+    el.textContent = message;
+    el.className = 'discount-feedback ' + state;
+  };
+  function calculateDiscount(base, promotion) {
+    if (!promotion) return 0;
+    const raw = promotion.type === 'Percentage' ? base*promotion.value/100 : promotion.value;
+    return Math.round(Math.min(base,Math.max(0,raw))*100)/100;
+  }
+  function clearDiscount(showMessage) {
+    applied = null;
+    appliedSubtotal = null;
+    if (showMessage) feedback('Je winkelmandje is gewijzigd. Pas je kortingscode opnieuw toe.');
+    document.getElementById('discount-breakdown').hidden = true;
+  }
+  function renderDiscount() {
+    const base = subtotal();
+    if (applied && appliedSubtotal !== base) clearDiscount(true);
+    const reduction = calculateDiscount(base,applied);
+    const total = Math.max(0,Math.round((base-reduction)*100)/100);
+    const breakdown = document.getElementById('discount-breakdown');
+    if (applied) {
+      breakdown.hidden = false;
+      breakdown.innerHTML = '<div class="discount-line"><span>Subtotaal</span><span>' + money(base) + '</span></div>' +
+        '<div class="discount-line"><span>Korting (' + escapeHtml(applied.code) + ')</span><span>− ' + money(reduction) + '</span></div>' +
+        '<div class="discount-line"><span>Totaal</span><span>' + money(total) + '</span></div>';
+    } else { breakdown.hidden = true; }
+    document.getElementById('cart-total').textContent = money(total);
+  }
+  function discountRequest(code, base) {
+    return new Promise((resolve,reject) => {
+      const callback = 'bkDiscount_' + Math.random().toString(36).slice(2);
+      const script = document.createElement('script');
+      let done = false;
+      const finish = (value,error) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        delete window[callback];
+        script.remove();
+        error ? reject(error) : resolve(value);
+      };
+      const timer = setTimeout(() => finish(null,new Error('Controle duurt te lang')),12000);
+      window[callback] = value => finish(value,null);
+      script.onerror = () => finish(null,new Error('Google Sheets is niet bereikbaar'));
+      script.src = ORDER_ENDPOINT + '?action=discount&code=' + encodeURIComponent(code) +
+        '&subtotal=' + encodeURIComponent(base) + '&callback=' + callback + '&t=' + Date.now();
+      document.head.appendChild(script);
+    });
+  }
+  window.applyDiscount = async () => {
+    const input = codeInput();
+    const code = input.value.trim().toUpperCase();
+    clearDiscount(false);
+    renderDiscount();
+    if (!cart.length) return feedback('Je winkelmandje is nog leeg.','error');
+    if (!code) return feedback('Vul eerst een kortingscode in.','error');
+    const button = document.getElementById('discount-apply');
+    button.disabled = true;
+    feedback('Kortingscode controleren...');
+    const base = subtotal();
+    try {
+      const result = await discountRequest(code,base);
+      if (subtotal() !== base || codeInput().value.trim().toUpperCase() !== code) return feedback('Winkelmandje of code gewijzigd. Probeer opnieuw.','error');
+      if (!result.success) return feedback(result.error || 'Ongeldige of niet-actieve code.','error');
+      applied = {code:result.code,type:result.type,value:Number(result.value)};
+      appliedSubtotal = base;
+      feedback('Kortingscode '+applied.code+' toegepast!','ok');
+      renderDiscount();
+    } catch(e) { feedback('Kortingscode kon niet worden gecontroleerd. Probeer opnieuw.','error'); }
+    finally { button.disabled=false; }
+  };
+  codeInput().addEventListener('input',() => { if (applied) {clearDiscount(true);renderDiscount();} });
+  codeInput().addEventListener('keydown',e => { if (e.key==='Enter') {e.preventDefault();applyDiscount();} });
+  // Behoud de bestaande cart-rendering en vernieuw uitsluitend de korting na een wijziging.
+  const originalUpdateCart = window.updateCart;
+  window.updateCart = function(...args) { const value=originalUpdateCart.apply(this,args); renderDiscount(); return value; };
+  renderDiscount();
 
   window.orderViaWhatsApp = function orderViaWhatsApp() {
-    if (sending) return;
-    if (!Array.isArray(cart) || !cart.length) {
-      alert('Voeg eerst een product toe aan je winkelmandje.');
-      return;
-    }
-
+    if (sending || !cart.length) return;
     const name = document.getElementById('customer-name').value.trim();
     const phone = document.getElementById('customer-phone').value.trim();
     const pickupDate = document.getElementById('pickup-date').value;
     const pickupTime = document.getElementById('pickup-time').value;
     const remark = document.getElementById('customer-remark').value.trim();
+    if (!name || !phone) return alert('Vul je naam en telefoonnummer in.');
+    if (!pickupDate || !pickupTime) return alert('Kies eerst een ophaaldatum en tijd.');
 
-    if (!name || !phone) {
-      alert('Vul je naam en telefoonnummer in.');
-      return;
-    }
-    if (!pickupDate || !pickupTime) {
-      alert('Kies eerst een ophaaldatum en tijd.');
-      return;
-    }
-
-    let total = 0;
-    const items = cart.map(item => {
-      const quantity = Number(item.quantity);
-      const price = Number(item.price);
-      const subtotal = quantity * price;
-      total += subtotal;
-      return {
-        model: String(item.model || ''),
-        color: String(item.color || ''),
-        size: String(item.size || ''),
-        quantity, price, subtotal
-      };
-    });
-
-    const order = {
-      customerName: name,
-      phone,
-      pickupDate,
-      pickupTime,
-      remark,
-      items
-    };
-
+    const items = cart.map(item => ({
+      model:String(item.model || ''), color:String(item.color || ''), size:String(item.size || ''),
+      quantity:Number(item.quantity),price:Number(item.price),
+      subtotal:Math.round(Number(item.quantity)*Number(item.price)*100)/100
+    }));
+    const base = subtotal();
+    if (applied && appliedSubtotal !== base) clearDiscount(true);
+    const discountAmount = calculateDiscount(base,applied);
+    const total = Math.round((base-discountAmount)*100)/100;
+    const order = {customerName:name,phone,pickupDate,pickupTime,remark,items,
+      discountCode:applied ? applied.code : ''};
     const lines = [
-      '🛍️ NIEUWE BESTELLING BEACH KIDS BONAIRE',
-      '',
-      ...items.flatMap(item => [
+      '🛍️ NIEUWE BESTELLING BEACH KIDS BONAIRE','',
+      ...items.flatMap(item=>[
         `${item.quantity}x ${item.model}`,
         ...(item.color ? [`Kleur: ${item.color}`] : []),
-        `Maat: ${item.size}`,
-        `Subtotaal: $${item.subtotal.toFixed(2)}`,
-        ''
-      ]),
-      `Totaal: $${total.toFixed(2)}`,
-      '',
-      `Naam: ${name}`,
-      `Telefoon: ${phone}`,
+        `Maat: ${item.size}`,`Subtotaal: ${money(item.subtotal)}`,'']),
+      `Subtotaal: ${money(base)}`,
+      ...(applied ? [`Kortingscode: ${applied.code}`,`Korting: -${money(discountAmount)}`] : []),
+      `Totaal: ${money(total)}`,'',
+      `Naam: ${name}`,`Telefoon: ${phone}`,
       `Ophalen: ${pickupDate} om ${pickupTime} bij Hill Side`,
       `Opmerking: ${remark || 'Geen'}`
     ];
-    const url = 'https://wa.me/' + WHATSAPP_NUMBER +
-      '?text=' + encodeURIComponent(lines.join('\n'));
-
-    sending = true;
-
-    // Fire-and-forget: registreer ook in Sheets. Dit blokkeert WhatsApp niet.
-    // Let op: de browser geeft hiermee géén garantie dat de Sheet is bijgewerkt.
-    const payload = JSON.stringify(order);
-    let queued = false;
+    const url='https://wa.me/'+WHATSAPP_NUMBER+'?text='+encodeURIComponent(lines.join('\n'));
+    sending=true;
+    // Direct openen; het bewaren in Sheets verloopt parallel en blokkeert WhatsApp niet.
+    const payload=JSON.stringify(order);
+    let queued=false;
     if (navigator.sendBeacon) {
-      try {
-        queued = navigator.sendBeacon(
-          ORDER_ENDPOINT,
-          new Blob([payload], {type:'text/plain;charset=UTF-8'})
-        );
-      } catch (err) {
-        console.warn('sendBeacon:', err);
-      }
+      try {queued=navigator.sendBeacon(ORDER_ENDPOINT,new Blob([payload],{type:'text/plain;charset=UTF-8'}));}
+      catch(e) { console.warn('Bestelling versturen:',e); }
     }
-    if (!queued) {
-      fetch(ORDER_ENDPOINT, {
-        method: 'POST',
-        mode: 'no-cors',
-        keepalive: true,
-        headers: {'Content-Type':'text/plain;charset=UTF-8'},
-        body: payload
-      }).catch(err => console.error('Bestelling registreren:', err));
-    }
-
-    // WhatsApp direct openen, zonder statuscontrole of extra bevestigingsscherm.
-    const popup = window.open(url, '_blank');
+    if (!queued) fetch(ORDER_ENDPOINT,{method:'POST',mode:'no-cors',keepalive:true,
+      headers:{'Content-Type':'text/plain;charset=UTF-8'},body:payload})
+      .catch(e=>console.error('Bestelling registreren:',e));
+    const popup=window.open(url,'_blank');
     if (!popup) window.location.assign(url);
-
-    setTimeout(() => { sending = false; }, 1200);
+    setTimeout(()=>{sending=false;},1200);
   };
 })();
 </script>
